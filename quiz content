@@ -1,0 +1,110 @@
+#include <LiquidCrystal.h>
+
+// Initialize LCD: (RS, E, D4, D5, D6, D7)
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+
+// Quiz data
+String questions[3] = {
+  "Q1: 2+2? A)3 B)4 C)5",
+  "Q2: 3*3? A)6 B)9 C)12",
+  "Q3: Sun rises? A)W B)E C)N"
+};
+int correctAnswers[3] = {1, 1, 1}; // B, B, B
+int currentQuestion = 0;
+int score = 0;
+bool quizStarted = false;
+unsigned long startTime;
+int totalTime = 30; // seconds
+
+void setup() {
+  lcd.begin(16, 2);
+  Serial.begin(9600);
+  lcd.clear();
+  lcd.print("Type 'start'");
+  Serial.println("Type 'start' to begin the quiz.");
+}
+
+void loop() {
+  // Wait for 'start'
+  if (!quizStarted && Serial.available()) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+
+    Serial.print("Received: ");
+    Serial.println(cmd);
+
+    if (cmd == "start") {
+      quizStarted = true;
+      currentQuestion = 0;
+      score = 0;
+      startTime = millis();
+      lcd.clear();
+      showQuestion();
+      Serial.println("Quiz started!");
+      Serial.println(questions[currentQuestion]);
+    }
+  }
+
+  // Quiz is running
+  if (quizStarted) {
+    unsigned long elapsed = (millis() - startTime) / 1000;
+    lcd.setCursor(0, 1);
+    lcd.print("Time: ");
+    lcd.print(totalTime - elapsed);
+    lcd.print("   "); // Clear extra chars
+
+    if (elapsed >= totalTime) {
+      endQuiz();
+      return;
+    }
+
+    // Check answer input
+    if (Serial.available()) {
+      char ans = Serial.read();
+      Serial.read(); // Consume newline
+
+      int userAns = -1;
+      if (ans == 'A' || ans == 'a') userAns = 0;
+      if (ans == 'B' || ans == 'b') userAns = 1;
+      if (ans == 'C' || ans == 'c') userAns = 2;
+
+      if (userAns == correctAnswers[currentQuestion]) {
+        score++;
+      }
+
+      currentQuestion++;
+      delay(300);
+
+      if (currentQuestion < 3) {
+        lcd.clear();
+        showQuestion();
+        Serial.println(questions[currentQuestion]);
+      } else {
+        endQuiz();
+      }
+    }
+  }
+}
+
+void showQuestion() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(questions[currentQuestion].substring(0, 16));
+  lcd.setCursor(0, 1);
+  lcd.print(questions[currentQuestion].substring(16));
+}
+
+void endQuiz() {
+  quizStarted = false;
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Score: ");
+  lcd.print(score);
+  Serial.print("Quiz over! Your score: ");
+  Serial.println(score);
+  delay(5000);
+  lcd.setCursor(0, 1);
+  lcd.print("Type 'start'");
+  Serial.println("Type 'start' to play again.");
+}
+
